@@ -1,0 +1,64 @@
+use teloxide::{dispatching::UpdateHandler, prelude::*, utils::command::BotCommands};
+
+use crate::elastic;
+
+type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
+#[derive(BotCommands, Clone)]
+#[command(
+    rename_rule = "lowercase",
+    description = "These commands are supported:"
+)]
+enum Command {
+    #[command(description = "display this text.")]
+    Help,
+    #[command(description = "display this text.")]
+    Start,
+    #[command(description = "search for message.")]
+    Search(String),
+}
+
+fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {
+    use dptree::case;
+
+    let command_handler = teloxide::filter_command::<Command, _>()
+        .branch(case![Command::Help].endpoint(help))
+        .branch(case![Command::Start].endpoint(help))
+        .branch(case![Command::Search(keyword)].endpoint(search));
+
+    Update::filter_message()
+        .branch(command_handler)
+        .branch(dptree::endpoint(message_handler))
+}
+
+async fn help(bot: Bot, msg: Message) -> HandlerResult {
+    bot.send_message(msg.chat.id, Command::descriptions().to_string())
+        .await?;
+    Ok(())
+}
+
+async fn search(bot: Bot, keyword: String, msg: Message) -> HandlerResult {
+    if keyword.is_empty() {
+        bot.send_message(msg.chat.id, "Usage: /search <keyword>")
+            .await?;
+    } else {
+        bot.send_message(msg.chat.id, keyword).await?;
+    }
+    Ok(())
+}
+
+async fn message_handler(_bot: Bot, msg: Message) -> HandlerResult {
+    log::debug!("{:#?}", msg);
+    elastic::add_message(msg).await;
+    Ok(())
+}
+
+pub async fn start() {
+    let bot = Bot::from_env();
+
+    Dispatcher::builder(bot, schema())
+        .enable_ctrlc_handler()
+        .build()
+        .dispatch()
+        .await;
+}
