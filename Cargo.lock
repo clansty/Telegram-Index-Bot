@@ -2336,6 +2336,7 @@ dependencies = [
  "once_cell",
  "pretty_env_logger",
  "rocket",
+ "serde",
  "serde_json",
  "teloxide",
  "tokio",

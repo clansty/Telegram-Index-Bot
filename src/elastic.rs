@@ -1,4 +1,7 @@
-use elasticsearch::{http::transport::Transport, indices::*, Elasticsearch, IndexParts};
+use crate::types::search_result::SearchResult;
+use elasticsearch::{
+    http::transport::Transport, indices::*, Elasticsearch, Error, IndexParts, SearchParts,
+};
 use once_cell::sync::Lazy;
 use serde_json::json;
 
@@ -25,6 +28,9 @@ pub async fn add_message(msg: teloxide::prelude::Message) {
                         "type": "text",
                         "analyzer": "ik_max_word",
                         "search_analyzer": "ik_smart"
+                    },
+                    "senderUsername": {
+                        "type": "keyword",
                     },
                     "date": {
                         "type": "date",
@@ -72,4 +78,35 @@ pub async fn add_message(msg: teloxide::prelude::Message) {
         .await;
     let response_body = response.expect("REASON").json::<serde_json::Value>().await;
     log::debug!("{:#?}", response_body);
+}
+
+pub async fn search(chat_id: i64, keyword: &str) -> Result<SearchResult, Error> {
+    let response = CLIENT
+        .search(SearchParts::Index(&[&format!(
+            "telegram_index_{}",
+            chat_id
+        )]))
+        .body(json!({
+            "query": {
+                "simple_query_string" : {
+                    "query": keyword,
+                    "fields": ["message", "senderName", "senderUsername"],
+                    "default_operator": "and",
+                    "analyzer": "ik_smart"
+                }
+            },
+            "highlight" : {
+                "pre_tags" : ["<b>"],
+                "post_tags" : ["</b>"],
+                "fields" : {
+                    "message" : {}
+                }
+            }
+        }))
+        .send()
+        .await;
+    match response {
+        Ok(res) => res.json::<SearchResult>().await,
+        Err(err) => Err(err),
+    }
 }

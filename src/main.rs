@@ -1,5 +1,6 @@
 mod elastic;
 mod telegram_bot;
+mod types;
 
 #[tokio::main]
 async fn main() {
