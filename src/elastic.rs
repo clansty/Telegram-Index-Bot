@@ -61,6 +61,10 @@ pub async fn add_message(msg: teloxide::prelude::Message) {
             "senderName": msg.sender_chat()
                 .map(|u| u.title().or(u.first_name()))
                 .unwrap_or(msg.from().map(|u| u.first_name.as_str())),
+            "senderUsername": msg.sender_chat()
+                .map(|u| u.username().map(|it|it.to_owned()))
+                .or(msg.from().map(|u| u.username.clone()))
+                .unwrap_or_default(),
             "date": msg.date.to_rfc3339(),
             "message": msg_text
         }))
