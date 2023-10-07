@@ -73,7 +73,7 @@ async fn search(bot: Bot, keyword: String, msg: Message) -> HandlerResult {
                     .collect();
                 let _ = bot
                     .send_message(msg.chat.id, hits.join("\n\n"))
-                    .reply_to_message_id(msg.id.0)
+                    .reply_to_message_id(msg.id)
                     .parse_mode(ParseMode::Html)
                     .await;
             }
